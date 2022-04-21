@@ -1,3 +1,9 @@
+#include <Event.h>
+#include <Timer.h>
+
+#include <ThreadController.h>
+#include <StaticThreadController.h>
+#include <Thread.h>
 #include <PRIZM.h>
 #include "HUSKYLENS.h"
 
@@ -11,13 +17,11 @@ PRIZM prizm;
 // prizm.readLineSensor(2); //디지털센서 0이면 하얀색, 1이면 검은색
 int threshold = 150;
 float gain = 0.03;
-int lineCount = 0;     // 교차로체크
+int lineCount = 0; // 교차로체크
 bool isgrip = false;
 bool isgripID1 = false; // id1에서 그립사용 여부
 bool isgripID2 = false; // id2에서 그립사용 여부
 int mapping[10];        //교차로 배열
-int sensor = analogRead(1); // 아날로그 - turn보정에 사용
-float turn_rate = (sensor - threshold) * gain;
 
 /*************************************************/
 void suddenstop(); //급정지
@@ -64,6 +68,10 @@ void setup()
   prizm.setServoPosition(1, 10);
   prizm.setServoPosition(2, 170);
   prizm.setServoPosition(3, 35);
+
+  //set Thread
+  Thread lineTracer = Thread();
+  Thread objectClassification = Thread();
 }
 
 void loop()
@@ -76,6 +84,9 @@ void loop()
   }
   else
   {
+    int sensor = analogRead(1); // 아날로그 - turn보정에 사용
+    float turn_rate = (sensor - threshold) * gain;
+
     // result.method로 원하는 데이터를 불러올 수 있음
     // method로 불러올 수 있는 값은 width, height, Xcenter, Ycenter, ID
     HUSKYLENSResult result = huskylens.read();
@@ -98,82 +109,21 @@ void loop()
         delay(2000);
         forward(500);
         suddenstop();
-        forward(1450);
-        suddenstop();
-        delay(1000);
-        lineCount++;
-        //교차로 시작
-        switch (lineCount)
-        {
-        case 0:
-          forward(500);
-          suddenstop();
-          delay(500);
-          forward(1450);
-          suddenstop();
-          delay(1000);
-          if (result.ID == 1 || result.ID == 2)
-          {
-            break;
-          } 
-          else
-          {
-            rightTurn();
-            lineCount++;
-            break;
-          }
-        case 1:
-          forward(1450);
-          suddenstop();
-          delay(1000);
-          leftTurn();
-          if (result.ID == 1 || result.ID == 2)
-          {
-            break;
-          } 
-          else
-          {
-            rightTurn();
-            lineCount++;
-            break;
-          }
-        case 2:
-          forward(1450);
-          delay(1450);
-          suddenstop();
-          delay(1000);
-          leftTurn();
-          if (result.ID == 1 || result.ID == 2)
-          {
-            break;
-          } 
-          else
-          {
-            rightTurn();
-            lineCount++;
-            break;
-          }
-        }
-      } 
-      else if(lineCount > 2)
-      {
-        rotate();
-        lineCount = 0;
       }
       else
       {
-        line();
+        prizm.setMotorPowers(20 - turn_rate, 20 + turn_rate);
       }
 
       if (isgrip == true && isgripID1 == true)
       { // id1이 그립 상태;
-  
+
         int temp_line = 0;
-        
+
         if (prizm.readLineSensor(2) == 1)
         {
           temp_line = lineCount; //교차로 수 넣기
-          
+
           forward(250);
           if (temp_line >= 0)
           {
@@ -230,7 +180,6 @@ void loop()
       }
       else if (isgripID1 == true && isgripID2 == true)
       {
-        
       }
     }
   }
@@ -240,7 +189,8 @@ void grip_thing(int distance, int id)
 {
   suddenstop();
   placement();
-  while(!isgrip){
+  while (!isgrip)
+  {
     if (prizm.readSonicSensorCM(3) > distance)
     {
       delay(250);
@@ -277,26 +227,26 @@ void grip()
 {
   prizm.setServoPosition(1, 100);
   prizm.setServoPosition(2, 80);
-  delay(3000);
+  delay(100);
 }
 
 void placement()
 {
   prizm.setServoPosition(1, 10);
   prizm.setServoPosition(2, 170);
-  delay(3000);
+  delay(100);
 }
 
 void liftUp()
 {
   prizm.setServoPosition(3, 0);
-  delay(3000);
+  delay(100);
 }
 
 void liftDown()
 {
   prizm.setServoPosition(3, 95);
-  delay(3000);
+  delay(100);
 }
 
 void forward(int mstime)
@@ -305,25 +255,27 @@ void forward(int mstime)
   delay(mstime);
 }
 
-void rightTurn()
+void rightTurn(int rad)
 {
-  prizm.setMotorPowers(20, -20);
-  delay(1100); //딜레이가 길수록 많이돈다.
-  prizm.setMotorPowers(125, 125);
-  delay(1000);
+  for(int i = 0; int i <= rad; i++)
+  {
+     prizm.setMotorTargets(0,1,0,-1);
+     delay(5);
+  }
 }
 
 void leftTurn()
 {
-  prizm.setMotorPowers(-20, 20);
-  delay(1100); //딜레이가 길수록 많이돈다.
-  prizm.setMotorPowers(125, 125);
-  delay(1000);
+  for(int i = 0; int i <= rad; i++)
+  {
+     prizm.setMotorTargets(0,-1,0,1);
+     delay(5);
+  }
 }
 
-void rotate()
+void rotate(int count)
 {
-  for (int i = 1; i <= 2; i++)
+  for (int i = 1; i <= count; i++)
   {
     rightTurn();
   }
@@ -331,7 +283,6 @@ void rotate()
 
 void line()
 {
-  prizm.setMotorPowers(20 - turn_rate, 20 + turn_rate);
 }
 
 void backward(int mstime)
