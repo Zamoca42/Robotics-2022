@@ -4,10 +4,18 @@
 #include <PRIZM.h>
 #include "HUSKYLENS.h"
 
-#define CAN_DISTANCE        4    //캔 거리
-#define BOTTLE_DISTANCE     5 //물병 거리
-#define TURN              270 //90도 도는 인코더 각도
-#define WHEEL             270 //바퀴가 선과 만나는 인코더각도
+// Distance
+#define CAN_DISTANCE 4    // 캔 거리
+#define BOTTLE_DISTANCE 5 // 물병 거리
+// Degree
+#define TURN 270  // 90도 도는 인코더 각도
+#define WHEEL 270 // 바퀴가 선과 만나는 인코더각도
+// Encoder
+#define LEFT 1  // LEFT Encoder
+#define RIGHT 2 // RIGHT Encoder
+// LineSensor
+#define WHITE 0
+#define BLACK 1
 
 HUSKYLENS huskylens;
 PRIZM prizm;
@@ -22,26 +30,28 @@ Thread myThread2 = Thread();
 int threshold = 150;
 float gain = 0.03;
 
-bool isgrip = false;
+int gripCount = 0;
 bool isgripID1 = false; // objectid1에서 그립사용 여부
 bool isgripID2 = false; // objectid2에서 그립사용 여부
 
-int horizonLine = 0;  // 가로선체크
+int horizonLine = 0; // 가로선체크
+int turnCount = 0;   // 턴 횟수
+long rightEncoderDegree = 0;
+long leftEncoderDegree = 0;
 
 /*************************************************/
-void suddenstop();         //급정지
-void grab();               //그리퍼로 잡기
-void placement();          //그립 펼치기
-void liftUp();             //서보로 리프트 들어올리기
-void liftDown();           //리프트 내리기
-void rightTurn(int degree);   // rad만큼 오른쪽으로 돌기
-void rightTurnTEST(int degree);
-void leftTurn(int rad);    // rad만큼 왼쪽으로 돌기
-void forward(int mstime);  // mstime만큼 앞으로 가기
-void backward(int mstime); // mstime만큼 뒤로 가기
+void suddenstop();          //급정지
+void grab();                //그리퍼로 잡기
+void placement();           //그립 펼치기
+void liftUp();              //서보로 리프트 들어올리기
+void liftDown();            //리프트 내리기
+void rightTurn(int degree); // degree만큼 오른쪽으로 돌기
+void leftTurn(int degree);  // degree만큼 왼쪽으로 돌기
+void forward(int degree);   // degree만큼 앞으로 가기
+void backward(int degree);  // degree만큼 뒤로 가기
 void find_thing(int distance, int id);
 void lineTracer();
-void align(); //인코더모터 정렬
+void align(); //인코더 0도 정렬
 /*************************************************/
 
 // callback for myThread
@@ -62,13 +72,27 @@ void lineFinder()
       forward(WHEEL);
       suddenstop();
       rightTurn(TURN);
+      turnCount++;
       horizonLine++;
       Serial.println(horizonLine);
-      //안약 초음파 범위내에 물건이 있다면
-      //가까이가기
-      
-      leftTurn(TURN);
-      break;
+      Serial.print(prizm.readSonicSensorCM(3));
+      Serial.println("CM");
+      if (prizm.readSonicSensorCM(3) < 20) //만약 초음파 범위(선길이)내에 물건이 있다면
+      {                                    //가까이가기
+        align();                           // resetEncoder
+        lineTracer();
+        forward(540); //허스키렌즈가 물건을 인식하는 거리까지 다가가기
+        //엔코더값 저장하기
+        rightEncoderDegree = prizm.readEncoderDegrees(2);
+        leftEncoderDegree = prizm.readEncoderDegrees(1);
+        break;
+      }
+      else // 20CM 이상이면
+      {
+        leftTurn(TURN);
+        turnCount--;
+        break;
+      }
     }
   }
 }
@@ -87,12 +111,12 @@ void objectClassify()
     delay(100);
     if (result.ID == 1)
     {
-      Serial.println(F("캔"));
+      Serial.println("캔");
       find_thing(CAN_DISTANCE, 1);
     }
     else if (result.ID == 2)
     {
-      Serial.println(F("플라스틱"));
+      Serial.println("플라스틱");
       find_thing(BOTTLE_DISTANCE, 2);
     }
   }
@@ -127,9 +151,11 @@ void setup()
   prizm.setServoPosition(1, 10);
   prizm.setServoPosition(2, 170);
   prizm.setServoPosition(3, 35);
-  
+
   // read battery
-  Serial.println(prizm.readBatteryVoltage());
+  Serail.print(Battery);
+  Serial.print(prizm.readBatteryVoltage());
+  Serial.println("V");
 
   // set thread
   myThread.onRun(lineFinder);
@@ -150,36 +176,136 @@ void loop()
 
   if(myThread2.shouldRun())
     myThread2.run();*/
+  // if(!isgripID1 && !isgripID2)
   controll.run();
-  
-  if (isgripID1)
-  {
-    //findthing에서 인코더값만큼 받아서
-    //뒤로 온다 encoder리셋하면안돼
-    //+line함수로 오차보정
-    //교차로가 맞는지 확인
-    //왼쪽으로 돈다
-    //Linecount 교차로수 만큼 뒤로와서
-    //물건놓기
-    prizm.PrizmEnd();
-  }
-  
 
   // Other code...
+  // after grab
+  if (isgripID1)
+  {
+    //왼쪽, 오른쪽, 센서값 비교
+    // findthing에서 인코더값만큼 받아서
+    //뒤로 온다
+    backward(rightEncoderDegree);
+    if (turnCount == 1)
+    {
+      if (prizm.readLineSensor(2) == 1) //교차로가 맞는지 확인
+      {
+        forward(WHEEL);
+        leftTurn(TURN);
+        turnCount--;
+      }
+      else
+      {
+        backLineTracer();
+        // while(1)
+        // {
+        //
+        //   if(prizm.readLineSensor(2) == 1)
+        //   {
+        //     suddenstop();
+        //     break;
+        //   }
+        // }
+      }
+    }
+    else if (turnCount == 0) // baseline 상태
+    {
+      while (horizonLine > 1)
+      {
+        if (prizm.readLineSensor(2) == 1)
+        {
+          horizonLine--;
+          suddenstop();
+          backward(45);
+        }
+        else
+        {
+          backLineTracer();
+        }
+      }
+      // Linecount 교차로수 만큼 뒤로와서
+      // 1번위치 놓기
+      //물건놓기
+      //처음위치로
+    }
+    if (horizonLine == 1)
+    {
+      int store = 0; //놓을 위치 id에 따라 다름
+      forward(WHEEL);
+      rightTurn(TURN);
+      //자리찾기
+      while (1)
+      {
+        if (prizm.readLineSensor(2) == 1)
+        {
+          forward(WHEEL);
+          store++;
+          if (store == 1) // id값
+          {
+            rightTurn(TURN);
+            forward(WHEEL * 2);
+            placement();
+            backward(WHEEL * 2);
+            break;
+          }
+        }
+        else
+        {
+          backLineTracer();
+        }
+      }
+      //되돌아나오기
+      while (1)
+      {
+        if (prizm.readLineSensor(2) == 1)
+        {
+          if (store == 1) // id값
+          {
+            forward(WHEEL);
+            leftTurn(TURN);
+            store--;
+            break;
+          }
+        }
+        else
+        {
+          backLineTracer();
+        }
+      }
+
+      if (prizm.readLineSensor(2) == 1)
+      {
+        forward(WHEEL);
+        leftTurn(TURN);
+        isgripID1 = false;
+        gripCount++;
+      }
+      else
+      {
+        backLineTracer();
+      }
+    }
+  }
+  else if (isgripID2)
+  {
+    prizm.PrizmEnd();
+  }
+  // if(gripCount == 2)
+  // {
+  //   prizm.PrizmEnd();
+  // }
 }
 
 void find_thing(int distance, int id)
 {
-  prizm.resetEncoder(1);
-  prizm.resetEncoder(2);
+  prizm.resetEncoder(1); //여기서부터 왼쪽 엔코더값 측정
+  prizm.resetEncoder(2); // 여기서부터 오른쪽 엔코더값 측정
 
-  long rightEncoder = prizm.readEncoderDegrees(2);
-  long leftEncoder = prizm.readEncoderDegrees(1);
+  Serial.print(prizm.readEncoderDegrees(2));   // -> 0
+  Serial.println(prizm.readEncoderDegrees(1)); // -> 0
 
-  Serial.print(leftEncoder);
-  Serial.println(rightEncoder);
-
-  while (!isgrip)
+  while (1)
   {
     if (prizm.readSonicSensorCM(3) > distance)
     {
@@ -191,25 +317,22 @@ void find_thing(int distance, int id)
       suddenstop();
       grab();
       liftUp();
+      rightEncoderDegree = rightEncoderDegree + prizm.readEncoderDegrees(2);
+      leftEncoderDegree = leftEncoderDegree + prizm.readEncoderDegrees(1);
+      Serial.print(leftEncoderDegree);
+      Serial.print("왼");
+      Serial.print(rightEncoderDegree);
+      Serial.println("오");
       if (id == 1)
       {
-        isgrip = true;
         isgripID1 = true;
-        Serial.print(leftEncoder);
-        Serial.print(F("(왼1)"));
-        Serial.print(rightEncoder);
-        Serial.println(F("(오1)"));
-        Serial.print(prizm.readEncoderDegrees(1));
-        Serial.print(F("(왼2)"));
-        Serial.print(prizm.readEncoderDegrees(2));
-        Serial.println(F("(오2)"));
-        Serial.println(F("ENDID1"));
+        Serial.println("ENDID1");
         break;
       }
       else if (id == 2)
       {
-        isgrip = true;
         isgripID2 = true;
+        Serial.println("ENDID2");
         break;
       }
     }
@@ -250,34 +373,34 @@ void liftDown()
 void forward(int degree)
 {
   prizm.setMotorDegrees(180, degree, 180, degree);
-  delay((degree/180)*1700);
+  delay((degree / 180) * 2000);
 }
 
-void backward(int mstime)
+void backward(int degree)
 {
-  prizm.setMotorPowers(-20, -20);
-  delay(mstime);
+  prizm.setMotorDegrees(180, degree, 180, degree);
+  delay((degree / 180) * 2000);
 }
 
 void rightTurn(int degree)
 {
   align();
   prizm.setMotorDegrees(180, degree, 180, -degree);
-  delay((degree/180)*1700);
+  delay((degree / 180) * 2000);
 }
 
 void leftTurn(int degree)
 {
   align();
   prizm.setMotorDegrees(180, -degree, 180, degree);
-  delay((degree/180)*1700);
+  delay((degree / 180) * 2000);
 }
 
 void align()
 {
   prizm.resetEncoder(1);
   prizm.resetEncoder(2);
-  prizm.setMotorDegrees(180, 0, 180, 0); //align
+  prizm.setMotorDegrees(180, 0, 180, 0); // align
   delay(10);
 }
 
@@ -285,38 +408,48 @@ void lineTracer()
 {
   int sensor = analogRead(1); // 아날로그 - turn보정에 사용
   float sig = (sensor - threshold) * gain;
-  
+
   prizm.setMotorPowers(20 - sig, 20 + sig);
 }
 
+void backLineTracer()
+{
+  int sensor = analogRead(1); // 아날로그 - turn보정에 사용
+  float sig = (sensor - threshold) * gain;
+
+  prizm.setMotorPowers(-20 - sig, -20 + sig);
+}
+
+/* TEST함수
 void rightTurnTEST(int degree)
 {
-    align();
-    Serial.print(prizm.readEncoderDegrees(1));
-    Serial.print(F("왼"));
-    Serial.print(prizm.readEncoderDegrees(2));
-    Serial.println(F("오"));
-    prizm.setMotorDegrees(180, degree, 180, -degree);
-    delay((degree/180)*1700);
-    Serial.print(prizm.readEncoderDegrees(1));
-    Serial.print(F("왼"));
-    Serial.print(prizm.readEncoderDegrees(2));
-    Serial.println(F("오"));
-    Serial.println(F("rightTurnEnd"));
+  align();
+  Serial.print(prizm.readEncoderDegrees(1));
+  Serial.print(F("왼"));
+  Serial.print(prizm.readEncoderDegrees(2));
+  Serial.println(F("오"));
+  prizm.setMotorDegrees(180, degree, 180, -degree);
+  delay((degree / 180) * 2000);
+  Serial.print(prizm.readEncoderDegrees(1));
+  Serial.print(F("왼"));
+  Serial.print(prizm.readEncoderDegrees(2));
+  Serial.println(F("오"));
+  Serial.println(F("rightTurnEnd"));
 }
 
 void lineTEST(int degree)
 {
-    align();
-    Serial.print(prizm.readEncoderDegrees(1));
-    Serial.print(F("왼"));
-    Serial.print(prizm.readEncoderDegrees(2));
-    Serial.println(F("오"));
-    prizm.setMotorDegrees(180, -degree, 180, -degree); //backward
-    delay((degree/180)*1700);
-    Serial.print(prizm.readEncoderDegrees(1));
-    Serial.print(F("왼"));
-    Serial.print(prizm.readEncoderDegrees(2));
-    Serial.println(F("오"));
-    Serial.println(F("End"));
+  align();
+  Serial.print(prizm.readEncoderDegrees(1));
+  Serial.print(F("왼"));
+  Serial.print(prizm.readEncoderDegrees(2));
+  Serial.println(F("오"));
+  prizm.setMotorDegrees(180, -degree, 180, -degree); // backward
+  delay((degree / 180) * 2000);
+  Serial.print(prizm.readEncoderDegrees(1));
+  Serial.print(F("왼"));
+  Serial.print(prizm.readEncoderDegrees(2));
+  Serial.println(F("오"));
+  Serial.println(F("End"));
 }
+*/
