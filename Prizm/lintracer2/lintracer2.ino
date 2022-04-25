@@ -11,7 +11,7 @@
 
 // Degree
 #define TURN 300  // 90도 도는 인코더 각도
-#define WHEEL 270 // 바퀴가 선과 만나는 인코더각도
+#define WHEEL 300 // 바퀴가 선과 만나는 인코더각도
 // Encoder
 #define LEFT 1  // LEFT Encoder
 #define RIGHT 2 // RIGHT Encoder
@@ -53,6 +53,7 @@ void forward(int degree);   // degree만큼 앞으로 가기
 void backward(int degree);  // degree만큼 뒤로 가기
 void find_thing(int distance, int id);
 void lineTracer();
+void backLineTracer();
 void align(); //인코더 0도 정렬
 /*************************************************/
 
@@ -96,7 +97,7 @@ void lineFinder()
         //허스키렌즈가 인식하는 거리까지 다가가기
         if (ultrasonicDistance <= 30)
         {
-          forward(90);
+          forward(120);
         }
         else if (ultrasonicDistance > 30)
         {
@@ -197,7 +198,7 @@ void setup()
   myThread.setInterval(10);
 
   myThread2.onRun(objectClassify);
-  myThread2.setInterval(300);
+  myThread2.setInterval(100);
 
   controll.add(&myThread);
   controll.add(&myThread2);
@@ -219,27 +220,50 @@ void loop()
   // after grab
   if (isgripID1 == true)
   {
+    long right = 0;
+    long left = 0;
     Serial.println("gripID1");
     //왼쪽, 오른쪽, 센서값 비교
-    if (turnCount == 1) //horizonLine 위일때
+    if (turnCount == 1) // horizonLine 위일때
     {
       // findthing에서 인코더값만큼 받아서
       // 뒤로 온다
       // 오차 어떻게 할건지?
       Serial.println("turn");
+      Serial.print("encoderDegree :");
       Serial.println(rightEncoderDegree);
       backward(rightEncoderDegree);
       Serial.println("backward");
       while (1)
       {
+        
         if (prizm.readLineSensor(2) == 1) //교차로가 맞는지 확인
         {
+          delay(100);
+          suddenstop();
           align();
           forward(WHEEL);
           leftTurn(TURN);
+          right = prizm.readEncoderDegrees(2);
+          left = prizm.readEncoderDegrees(1);
+          Serial.print(left);
+          Serial.print("좌 - 우");
+          Serial.println(right);
+          if(right > left)
+          { 
+            //좌회전-+
+            prizm.setMotorDegrees(180, (left-right)/2,180, (right-left)/2);
+            delay((right-left) * 20);
+          }
+          else if(right < left)
+          {
+            //우회전+-
+            prizm.setMotorDegrees(180, (right-left)/2,180, (left-right)/2);
+            delay((left-right) * 20);
+          }
           turnCount--;
-          Serial.print(turnCount);
-          Serial.println("turnCount");
+          Serial.print("turnCount : ");
+          Serial.println(turnCount);
           break;
         }
         else
@@ -251,54 +275,97 @@ void loop()
     else if (turnCount == 0) // baseline 위일때
     {
       Serial.println("No turn");
-      while (horizonLine > 0)
+      int LineDetect = 0;
+      
+      while (1)
       {
-        if (prizm.readLineSensor(2) == 1)
+        align();
+        right = -prizm.readEncoderDegrees(2);
+        left = prizm.readEncoderDegrees(1);
+        //뒤로갈 때
+        //right = 마이너스값
+        //left = 플러스값
+        LineDetect = prizm.readLineSensor(2);
+        if (LineDetect == 1)
         {
+          suddenstop();
+          Serial.print("horizonLine : ");
           Serial.println(horizonLine);
           align();
-          backward(90);
+          backward(300);
+          if (horizonLine == 1)
+          {
+            break;
+          }
           horizonLine--;
         }
         else
         {
+          // Serial.print(left);
+          // Serial.print("좌 - 우");
+          // Serial.println(right);
+          /*
+          if(right > left)
+          { 
+            //좌회전-+
+            prizm.setMotorDegrees(180, (left-right)/2,180, -(right-left)/2);
+            delay((right-left) * 5);
+          }
+          else if(right < left)
+          {
+            //우회전+-
+            prizm.setMotorDegrees(180, -(right-left)/2,180, (left-right)/2);
+            delay((left-right) * 5);
+          }
+          else
+          {
+            backLineTracer();
+            delay(5);
+          }
+          */
           backLineTracer();
         }
       }
-      // Linecount 교차로수 만큼 뒤로와서
       // 1번위치 놓기
       //물건놓기
       //처음위치로
     }
-    if (horizonLine == 0) //첫 교차로
+    if (horizonLine == 1) //첫 교차로
     {
-      Serial.println("horizon = 1");
+      Serial.println("horizon = 0");
       Serial.println("find_CAN_Home");
       int store = 0; //놓을 위치 id에 따라 다름
       //자리찾기
       while (1)
       {
+        delay(100);
         if (prizm.readLineSensor(2) == 1)
         {
           Serial.println("BlackLine ");
-          align();
-          if(store == 0)
-          {
+          if (store == 0)
+          { 
+            align();
             forward(WHEEL);
             rightTurn(TURN);
             store++;
+            Serial.print("store : ");
+            Serial.println(store);
+            break;
           }
           if (store == 1) // id값
           {
             align();
             forward(WHEEL);
             rightTurn(TURN);
+            align();
             forward(WHEEL);
             placement();
+            align();
             backward(WHEEL);
+            leftTurn(TURN);
+            Serial.println("놨다");
             break;
           }
-          
         }
         else
         {
@@ -306,22 +373,30 @@ void loop()
         }
       }
       //되돌아나와서 다시 horizonline 위로
+      Serial.println("CAN_go_home");
       while (1)
       {
-        Serial.println("go_home");
+        delay(100);
         if (prizm.readLineSensor(2) == 1)
         {
           if (store == 0)
           {
-
+            //원점으로
+            align();
+            forward(WHEEL);
+            leftTurn(TURN);
+            horizonLine++;
+            isgripID1 = false;
+            gripCount++;
+            Serial.print("gripCount :");
+            Serial.println(gripCount);
+            break;
           }
           if (store == 1) // id값
           {
             align();
-            forward(WHEEL);
-            leftTurn(TURN);
+            backward(WHEEL + 90);
             store--;
-            break;
           }
         }
         else
@@ -329,28 +404,18 @@ void loop()
           backLineTracer();
         }
       }
-
-      if (prizm.readLineSensor(2) == 1)
-      {
-        forward(WHEEL);
-        leftTurn(TURN);
-        isgripID1 = false;
-        gripCount++;
-      }
-      else
-      {
-        backLineTracer();
-      }
     }
   }
   else if (isgripID2 == true)
   {
     prizm.PrizmEnd();
   }
-  // if(gripCount == 2)
-  // {
-  //   prizm.PrizmEnd();
-  // }
+  if (gripCount == 2)
+  {
+    Serial.println("gripCount is 2!");
+    Serial.println("PrizmEnd");
+    prizm.PrizmEnd();
+  }
 }
 
 void find_thing(int distance, int id)
@@ -379,15 +444,18 @@ void find_thing(int distance, int id)
       Serial.println("오");
       right = prizm.readEncoderDegrees(2);
       left = prizm.readEncoderDegrees(1);
-      forward(right + 90);
+      //여기서 부드럽게 가는방법 생각
+      forward(right+90);
+      //rightEncoderDegree = rightEncoderDegree + right;
+      //leftEncoderDegree = leftEncoderDegree + left;
     }
     if (ultrasonicDistance <= distance)
     {
       Serial.println("잡기실행");
       grab();
       liftUp();
-      right = prizm.readEncoderDegrees(2);
-      left = prizm.readEncoderDegrees(1);
+      //right = prizm.readEncoderDegrees(2);
+      //left = prizm.readEncoderDegrees(1);
       rightEncoderDegree = rightEncoderDegree + right;
       leftEncoderDegree = leftEncoderDegree + left;
       Serial.print(leftEncoderDegree);
@@ -443,12 +511,14 @@ void liftDown()
 
 void forward(int degree)
 {
+  //align(); //해줄때 안해줄때 구분
   prizm.setMotorDegrees(180, degree, 180, degree);
   delay((degree / 180) * 2000);
 }
 
 void backward(int degree)
 {
+  //align(); //해줄때 안해줄때 구분
   prizm.setMotorDegrees(180, -degree, 180, -degree);
   delay((degree / 180) * 2000);
 }
