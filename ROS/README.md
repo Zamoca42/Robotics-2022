@@ -4,8 +4,8 @@ M1 Macbookair에서 사용
 
 ## docker를 이용한 구동 방법
 
-선결론 : 구동 과정이 복잡하다  
-참고 : https://velog.io/@mond210/Docker-with-Ros2
+>결론 : 구동 과정이 복잡하다  
+>참고 : https://velog.io/@mond210/Docker-with-Ros2
 
 요약하면
 
@@ -17,10 +17,10 @@ M1 Macbookair에서 사용
 
 4. 맥 터미널에서 접속하기위한 en0 포트 ip를 확인
 
-```
-ip=$(ifconfig en0 | grep inet | awk '$1=="inet" {print $2}')
-print $ip
-```
+   ```
+   ip=$(ifconfig en0 | grep inet | awk '$1=="inet" {print $2}')
+   print $ip
+   ```
 
 5. 컨테이너 실행 `docker start robotics`
 
@@ -34,25 +34,26 @@ print $ip
 
 ## UTM을 이용한 ubuntu 20.04에서 ROS
 
-선결론 : 가상화머신안에서 돌아가기 때문에 초기설정만 하면 편하다  
-현재 turtlesim, rqt까지 돌아가는 것 확인 Gazebo까지 되는지 확인해야함
+>결론 : 가상화머신안에서 돌아가기 때문에 초기설정만 하면 편하다  
+
+현재 turtlesim, rqt, Gazebo가 오류없이 돌아가는 것을 확인 UTM이 나를 살렸다.  
 
 1. UTM 설치 https://getutm.app/
-   맥스토어에 유료버전도 존재하지만 무료버전과의 차이는 유지보수라고 함.
+   맥스토어에 유료버전도 존재하지만 무료버전과의 차이는 유지보수정도라고 함.
 
 2. 원하는 ubuntu버전 다운로드 `arm64` 또는 `amd64`가 있는데  
-   M1 맥북은 `arm64`를 받아야한다 `amd64`는 x64아키텍쳐용이라 utm을  
-   virtualize로 올리면 아키텍쳐가 맞지않아 실행되지 않는다.
+   M1 맥북은 `arm64`를 받아야한다 `amd64`는 x64아키텍쳐용이라  
+   utm을 virtualize로 올리면 아키텍쳐가 맞지않아 실행되지 않는다.
 
 3. UTM 가상머신 추가한다. virtualize와 emulate가 있는데  
    emulate는 기기와 다른 아키텍쳐를 쓸 수 있는 대신 느리다..  
    설정 시 메모리는 4GB이상을 추천한다.
 
 4. ubuntu 설치가 완료되면 ROS를 설치하면 되는데  
-   [ROS WIKI 공식가이드](http://wiki.ros.org/noetic/Installation/Ubuntu#noetic.2FInstallation.2FPostInstall.Tutorials)
+   [ROS WIKI 가이드](http://wiki.ros.org/noetic/Installation/Ubuntu#noetic.2FInstallation.2FPostInstall.Tutorials)
    를 보고 그대로 따라하면된다.  
    영어가 부담스러우면 https://pinkwink.kr/1319 블로그에 친절히 나와있다.  
-   여러 버전이 있지만 무슨차이인지는 잘 모르겠다. 나는 Noetic으로 설치했다.
+   우분투20.04에서는 foxy를 설치하라고 하지만, Noetic을 설치해도 상관없다.  
 
 5. 이후 `roscore`명령어로 마스터 실행  
    새 터미널창을 띄워서 `rosrun turtlesim turtlesim_node`로 터틀심 윈도우 창이 뜨고  
