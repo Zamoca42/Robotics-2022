@@ -236,7 +236,7 @@ void loop()
       Serial.println("backward");
       while (1)
       {
-        
+
         if (prizm.readLineSensor(2) == 1) //교차로가 맞는지 확인
         {
           delay(100);
@@ -249,17 +249,17 @@ void loop()
           Serial.print(left);
           Serial.print("좌 - 우");
           Serial.println(right);
-          if(right > left)
-          { 
+          if (right > left)
+          {
             //좌회전-+
-            prizm.setMotorDegrees(180, (left-right)/2,180, (right-left)/2);
-            delay((right-left) * 20);
+            prizm.setMotorDegrees(180, (left - right) / 2, 180, (right - left) / 2);
+            delay((right - left) * 20);
           }
-          else if(right < left)
+          else if (right < left)
           {
             //우회전+-
-            prizm.setMotorDegrees(180, (right-left)/2,180, (left-right)/2);
-            delay((left-right) * 20);
+            prizm.setMotorDegrees(180, (right - left) / 2, 180, (left - right) / 2);
+            delay((left - right) * 20);
           }
           turnCount--;
           Serial.print("turnCount : ");
@@ -276,15 +276,14 @@ void loop()
     {
       Serial.println("No turn");
       int LineDetect = 0;
-      
+
       while (1)
       {
-        align();
         right = -prizm.readEncoderDegrees(2);
         left = prizm.readEncoderDegrees(1);
         //뒤로갈 때
-        //right = 마이너스값
-        //left = 플러스값
+        // right = 마이너스값
+        // left = 플러스값
         LineDetect = prizm.readLineSensor(2);
         if (LineDetect == 1)
         {
@@ -306,23 +305,25 @@ void loop()
           // Serial.println(right);
           /*
           if(right > left)
-          { 
+          {
             //좌회전-+
             prizm.setMotorDegrees(180, (left-right)/2,180, -(right-left)/2);
-            delay((right-left) * 5);
+            delay((right-left) * 10);
           }
           else if(right < left)
           {
             //우회전+-
             prizm.setMotorDegrees(180, -(right-left)/2,180, (left-right)/2);
-            delay((left-right) * 5);
+            delay((left-right) * 10);
           }
           else
           {
             backLineTracer();
-            delay(5);
+            delay(10);
           }
           */
+          // align();
+          // delay(15);
           backLineTracer();
         }
       }
@@ -332,7 +333,7 @@ void loop()
     }
     if (horizonLine == 1) //첫 교차로
     {
-      Serial.println("horizon = 0");
+      Serial.println("horizon = 1");
       Serial.println("find_CAN_Home");
       int store = 0; //놓을 위치 id에 따라 다름
       //자리찾기
@@ -343,14 +344,14 @@ void loop()
         {
           Serial.println("BlackLine ");
           if (store == 0)
-          { 
+          {
             align();
             forward(WHEEL);
             rightTurn(TURN);
             store++;
             Serial.print("store : ");
             Serial.println(store);
-            break;
+            //break;
           }
           if (store == 1) // id값
           {
@@ -394,7 +395,6 @@ void loop()
           }
           if (store == 1) // id값
           {
-            align();
             backward(WHEEL + 90);
             store--;
           }
@@ -445,17 +445,17 @@ void find_thing(int distance, int id)
       right = prizm.readEncoderDegrees(2);
       left = prizm.readEncoderDegrees(1);
       //여기서 부드럽게 가는방법 생각
-      forward(right+90);
-      //rightEncoderDegree = rightEncoderDegree + right;
-      //leftEncoderDegree = leftEncoderDegree + left;
+      forward(right + 90);
+      // rightEncoderDegree = rightEncoderDegree + right;
+      // leftEncoderDegree = leftEncoderDegree + left;
     }
     if (ultrasonicDistance <= distance)
     {
       Serial.println("잡기실행");
       grab();
       liftUp();
-      //right = prizm.readEncoderDegrees(2);
-      //left = prizm.readEncoderDegrees(1);
+      // right = prizm.readEncoderDegrees(2);
+      // left = prizm.readEncoderDegrees(1);
       rightEncoderDegree = rightEncoderDegree + right;
       leftEncoderDegree = leftEncoderDegree + left;
       Serial.print(leftEncoderDegree);
@@ -511,14 +511,14 @@ void liftDown()
 
 void forward(int degree)
 {
-  //align(); //해줄때 안해줄때 구분
+  // align(); //해줄때 안해줄때 구분
   prizm.setMotorDegrees(180, degree, 180, degree);
   delay((degree / 180) * 2000);
 }
 
 void backward(int degree)
 {
-  //align(); //해줄때 안해줄때 구분
+  // align(); //해줄때 안해줄때 구분
   prizm.setMotorDegrees(180, -degree, 180, -degree);
   delay((degree / 180) * 2000);
 }
