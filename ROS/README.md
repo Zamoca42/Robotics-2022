@@ -30,7 +30,7 @@ M1 Macbookair에서 사용
 
 8. 다른 터미널창 띄우기 `cmd + D`
 
-9. 터틀심 방향키 조종 `ros2 run turtlesim turtle_teleop_key`
+9. 터틀심 방향키 노드 `ros2 run turtlesim turtle_teleop_key`
 
 # UTM을 이용한 ubuntu 20.04에서 ROS
 
@@ -53,7 +53,7 @@ turtlesim, rqt, Gazebo가 에러없이 돌아가는 것을 확인
 4. ubuntu 설치가 완료되면 ROS를 설치하면 되는데  
    [ROS WIKI 가이드](http://wiki.ros.org/noetic/Installation/Ubuntu#noetic.2FInstallation.2FPostInstall.Tutorials)
    를 보고 그대로 따라하면된다.  
-   영어가 부담스러우면 https://pinkwink.kr/1319 블로그에 친절히 나와있다.  
+   영어가 부담스러우면 [블로그](https://pinkwink.kr/1319)에 친절히 나와있다.  
    우분투20.04에서는 foxy를 설치하라고 하지만, Noetic을 설치해도 상관없다.
 
 5. 이후 `roscore`명령어로 마스터 실행  
@@ -64,19 +64,19 @@ turtlesim, rqt, Gazebo가 에러없이 돌아가는 것을 확인
 
 # ROS 용어
 
-## Node
+- Node
 
-최소 단위의 실행 가능한 프로세스로 하나의 실행 가능한 프로그램으로 생각하면 된다.  
-ROS에서는 최소한의 실행단위로 프로그램을 나누어 작업. 각 노드는 메세지 통신으로 데이터를 주고 받는다.
+  최소 단위의 실행 가능한 프로세스로 하나의 실행 가능한 프로그램으로 생각하면 된다.  
+  ROS에서는 최소한의 실행단위로 프로그램을 나누어 작업. 각 노드는 메세지 통신으로 데이터를 주고 받는다.
 
-## Package
+- Package
 
-하나 이상의 노드, 노드 실행을 위한 정보 등을 묶어 놓은 것.  
-또한, 패키지의 묶음을 메타패키지라 하여 따로 분리.
+  하나 이상의 노드, 노드 실행을 위한 정보 등을 묶어 놓은 것.  
+  또한, 패키지의 묶음을 메타패키지라 하여 따로 분리.
 
-## Message
+- Message
 
-메세지를 통해 노드간의 데이터를 주고받게 된다. 메시지는 integer, floating point, boolean과 같은 변수형태이다
+  메세지를 통해 노드간의 데이터를 주고받게 된다. 메시지는 integer, floating point, boolean과 같은 변수형태이다
 
 # ROS 메시지
 
@@ -157,7 +157,7 @@ ROS에서는 최소한의 실행단위로 프로그램을 나누어 작업. 각 
 
 ## Command-Line Tools
 
-- GUI없이ROS에서제공되는명령어로만로봇억􏰀스및거의모든ROS기능소화
+- GUI없이 ROS에서 제공하는 명령어로만 거의 모든 ROS기능 소화
 
 ## RViz
 
